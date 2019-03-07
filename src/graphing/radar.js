@@ -10,6 +10,8 @@ const QueryParams = require('../util/queryParamProcessor')
 
 const MIN_BLIP_WIDTH = 12
 const ANIMATION_DURATION = 1000
+const dotenv = require('dotenv'); 
+dotenv.config()
 
 const Radar = function (size, radar) {
   var svg, radarElement, quadrantButtons, buttonsGroup, header, alternativeDiv
@@ -431,19 +433,29 @@ const Radar = function (size, radar) {
 
   function plotRadarHeader () {
     header = d3.select('body').insert('header', '#radar')
+    var title = document.title
+    if(process.env.RADAR_NAME){
+      title = process.env.RADAR_NAME
+    }
+    var logo = '/images/logo.png'
+    var logo_link = 'https://www.thoughtworks.com'
+    if(process.env.LOGO){
+      logo = process.env.LOGO
+      logo_link = process.env.LOGO_LINK
+    }
     header.append('div')
-      .attr('class', 'radar-title')
+    .attr('class', 'radar-title')
       .append('div')
       .attr('class', 'radar-title__text')
       .append('h1')
-      .text(document.title)
+      .text(title)
       .style('cursor', 'pointer')
       .on('click', redrawFullRadar)
 
     header.select('.radar-title')
       .append('div')
       .attr('class', 'radar-title__logo')
-      .html('<a href="https://www.thoughtworks.com"> <img src="/images/logo.png" /> </a>')
+      .html('<a href="'+logo_link+'"><img src="'+logo+'" /</a>')
 
     buttonsGroup = header.append('div')
       .classed('buttons-group', true)
@@ -501,16 +513,20 @@ const Radar = function (size, radar) {
   }
 
   function plotRadarFooter () {
+    var footer_text = 'Powered by <a href="https://www.thoughtworks.com"> ThoughtWorks</a>. ' +
+                      'By using this service you agree to <a href="https://www.thoughtworks.com/radar/tos">ThoughtWorks\' terms of use</a>. ' +
+                      'You also agree to our <a href="https://www.thoughtworks.com/privacy-policy">privacy policy</a>, which describes how we will gather, use and protect any personal data contained in your public Google Sheet. '+
+                      'This software is <a href="https://github.com/thoughtworks/build-your-own-radar">open source</a> and available for download and self-hosting.'
+    if(process.env.FOOTER_TEXT){
+        footer_text = process.env.FOOTER_TEXT
+    }
     d3.select('body')
       .insert('div', '#radar-plot + *')
       .attr('id', 'footer')
       .append('div')
       .attr('class', 'footer-content')
       .append('p')
-      .html('Powered by <a href="https://www.thoughtworks.com"> ThoughtWorks</a>. ' +
-      'By using this service you agree to <a href="https://www.thoughtworks.com/radar/tos">ThoughtWorks\' terms of use</a>. ' +
-      'You also agree to our <a href="https://www.thoughtworks.com/privacy-policy">privacy policy</a>, which describes how we will gather, use and protect any personal data contained in your public Google Sheet. ' +
-      'This software is <a href="https://github.com/thoughtworks/build-your-own-radar">open source</a> and available for download and self-hosting.')
+      .html(footer_text)
   }
 
   function mouseoverQuadrant (order) {
@@ -619,8 +635,9 @@ const Radar = function (size, radar) {
     currentSheet = radar.getCurrentSheet()
     var header = plotRadarHeader()
 
-    plotAlternativeRadars(alternatives, currentSheet)
-
+    if(alternatives.length > 1){
+      plotAlternativeRadars(alternatives, currentSheet)
+    }
     plotQuadrantButtons(quadrants, header)
 
     radarElement.style('height', size + 14 + 'px')

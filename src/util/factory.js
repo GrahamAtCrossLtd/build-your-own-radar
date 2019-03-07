@@ -22,6 +22,8 @@ const ContentValidator = require('./contentValidator')
 const Sheet = require('./sheet')
 const ExceptionMessages = require('./exceptionMessages')
 const GoogleAuth = require('./googleAuth')
+const dotenv = require('dotenv'); 
+dotenv.config()
 
 const plotRadar = function (title, blips, currentRadarName, alternativeRadars) {
   document.title = title
@@ -101,7 +103,13 @@ const GoogleSheet = function (sheetReference, sheetName) {
         var all = tabletop.sheets(sheetName).all()
         var blips = _.map(all, new InputSanitizer().sanitize)
 
-        plotRadar(tabletop.googleSheetName + ' - ' + sheetName, blips, sheetName, tabletop.foundSheetNames)
+        var title = tabletop.googleSheetName + ' - ' + sheetName
+
+        if(process.env.RADAR_NAME){
+          title = process.env.RADAR_NAME
+        }
+
+        plotRadar(title, blips, sheetName, tabletop.foundSheetNames)
       } catch (exception) {
         plotErrorMessage(exception)
       }
@@ -163,7 +171,14 @@ const CSVDocument = function (url) {
       contentValidator.verifyContent()
       contentValidator.verifyHeaders()
       var blips = _.map(data, new InputSanitizer().sanitize)
-      plotRadar(FileName(url), blips, 'CSV File', [])
+
+      var title = FileName(url)
+
+      if(process.env.RADAR_NAME){
+        title = process.env.RADAR_NAME
+      }
+      
+      plotRadar(title, blips, 'CSV File', [])
     } catch (exception) {
       plotErrorMessage(exception)
     }
@@ -198,17 +213,24 @@ const GoogleSheetInput = function () {
   var sheet
 
   self.build = function () {
-    var domainName = DomainName(window.location.search.substring(1))
-    var queryString = window.location.href.match(/sheetId(.*)/)
-    var queryParams = queryString ? QueryParams(queryString[0]) : {}
+    var radarLocation = '' 
+    var domainName = '';
+    var queryParams = '';
+    if(process.env.RADAR_LOCATION){
+      radarLocation = 'sheetId=' + process.env.RADAR_LOCATION
+      domainName = DomainName(radarLocation);
+      queryParams = QueryParams(radarLocation);
+    }else{
+      domainName = DomainName(window.location.search.substring(1))
+      queryString = window.location.href.match(/sheetId(.*)/)
+      queryParams = queryString ? QueryParams(queryString[0]) : {}
+    }
 
     if (domainName && queryParams.sheetId.endsWith('csv')) {
       sheet = CSVDocument(queryParams.sheetId)
       sheet.init().build()
     } else if (domainName && domainName.endsWith('google.com') && queryParams.sheetId) {
       sheet = GoogleSheet(queryParams.sheetId, queryParams.sheetName)
-      console.log(queryParams.sheetName)
-
       sheet.init().build()
     } else {
       var content = d3.select('body')
@@ -219,7 +241,10 @@ const GoogleSheetInput = function () {
       plotLogo(content)
 
       var bannerText = '<div><h1>Build your own radar</h1><p>Once you\'ve <a href ="https://www.thoughtworks.com/radar/byor">created your Radar</a>, you can use this service' +
-        ' to generate an <br />interactive version of your Technology Radar. Not sure how? <a href ="https://www.thoughtworks.com/radar/how-to-byor">Read this first.</a></p></div>'
+                               ' to generate an <br />interactive version of your Technology Radar. Not sure how? <a href ="https://www.thoughtworks.com/radar/how-to-byor">Read this first.</a></p></div>'
+      if(process.env.BANNER_TEXT){
+        bannerText = '<div><h1>'+process.env.BANNER_TEXT+'</h1></div>'
+      }
 
       plotBanner(content, bannerText)
 
@@ -253,22 +278,30 @@ function plotLoading (content) {
 }
 
 function plotLogo (content) {
+  var logo = '/images/logo.png'
+  if(process.env.LOGO){
+    logo = process.env.LOGO
+  }
   content.append('div')
     .attr('class', 'input-sheet__logo')
-    .html('<a href="https://www.thoughtworks.com"><img src="/images/tw-logo.png" / ></a>')
+    .html('<img src="'+logo+'"/>')
 }
 
 function plotFooter (content) {
+  var footer_text = 'Powered by <a href="https://www.thoughtworks.com"> ThoughtWorks</a>. ' +
+                    'By using this service you agree to <a href="https://www.thoughtworks.com/radar/tos">ThoughtWorks\' terms of use</a>. ' +
+                    'You also agree to our <a href="https://www.thoughtworks.com/privacy-policy">privacy policy</a>, which describes how we will gather, use and protect any personal data contained in your public Google Sheet. ' +
+                    'This software is <a href="https://github.com/thoughtworks/build-your-own-radar">open source</a> and available for download and self-hosting.'
+    if(process.env.FOOTER_TEXT){
+      footer_text = process.env.FOOTER_TEXT
+    }
   content
     .append('div')
     .attr('id', 'footer')
     .append('div')
     .attr('class', 'footer-content')
     .append('p')
-    .html('Powered by <a href="https://www.thoughtworks.com"> ThoughtWorks</a>. ' +
-      'By using this service you agree to <a href="https://www.thoughtworks.com/radar/tos">ThoughtWorks\' terms of use</a>. ' +
-      'You also agree to our <a href="https://www.thoughtworks.com/privacy-policy">privacy policy</a>, which describes how we will gather, use and protect any personal data contained in your public Google Sheet. ' +
-      'This software is <a href="https://github.com/thoughtworks/build-your-own-radar">open source</a> and available for download and self-hosting.')
+    .html(footer_text)
 }
 
 function plotBanner (content, text) {
@@ -278,10 +311,15 @@ function plotBanner (content, text) {
 }
 
 function plotForm (content) {
+  var input_label = '<strong>Enter the URL of your Google Sheet or CSV</a> file below…'
+
+  if(process.env.THOUGHTWORKS_HELP)
+    input_label = '<strong>Enter the URL of your <a href="https://www.thoughtworks.com/radar/how-to-byor" target="_blank">Google Sheet or CSV</a> file below…</strong>'
+
   content.append('div')
     .attr('class', 'input-sheet__form')
     .append('p')
-    .html('<strong>Enter the URL of your <a href="https://www.thoughtworks.com/radar/how-to-byor" target="_blank">Google Sheet or CSV</a> file below…</strong>')
+    .html(input_label)
 
   var form = content.select('.input-sheet__form').append('form')
     .attr('method', 'get')
@@ -297,8 +335,9 @@ function plotForm (content) {
     .append('a')
     .attr('class', 'button')
     .text('Build my radar')
-
-  form.append('p').html("<a href='https://www.thoughtworks.com/radar/how-to-byor'>Need help?</a>")
+  if(process.env.THOUGHTWORKS_HELP){
+    form.append('p').html("<a href='https://www.thoughtworks.com/radar/how-to-byor'>Need help?</a>")
+  }
 }
 
 function plotErrorMessage (exception) {
@@ -313,17 +352,26 @@ function plotErrorMessage (exception) {
 
   var bannerText = '<div><h1>Build your own radar</h1><p>Once you\'ve <a href ="https://www.thoughtworks.com/radar/byor">created your Radar</a>, you can use this service' +
     ' to generate an <br />interactive version of your Technology Radar. Not sure how? <a href ="https://www.thoughtworks.com/radar/how-to-byor">Read this first.</a></p></div>'
+  if(process.env.BANNER_TEXT)
+    var bannerText = process.env.BANNER_TEXT
 
   plotBanner(content, bannerText)
 
   d3.selectAll('.loading').remove()
-  message = "Oops! We can't find the Google Sheet you've entered"
   var faqMessage = 'Please check <a href="https://www.thoughtworks.com/radar/how-to-byor">FAQs</a> for possible solutions.'
+    if(!process.env.THOUGHTWORKS_HELP){
+        faqMessage = 'please contact help for directions'
+    }
   if (exception instanceof MalformedDataError) {
+    message = message + "Malformed Data Error "
     message = message.concat(exception.message)
   } else if (exception instanceof SheetNotFoundError) {
-    message = exception.message
+    message = message + "Oops! We can't find the Google Sheet you've entered "
+    message = message + exception.message
   } else {
+    message = message + "Uncaught Error "
+    message = message + exception.message
+    message = message + exception.stack
     console.error(exception)
   }
 

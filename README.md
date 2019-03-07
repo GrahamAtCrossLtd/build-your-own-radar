@@ -112,3 +112,16 @@ To run End to End tests in debug mode
      $ docker run -p 8080:8080 -v $PWD:/app -w /app -it node:10.14.2 /bin/sh -c 'npm install && npm run dev'
 
 After building it will start on localhost:8080
+
+## Use of environment variables
+
+To customise the radar to your organisation you can use a `.env` file in the root directory.  Currently configured variables with example values are:
+
+    RADAR_LOCATION = http://localhost:9090/radartest.csv
+    LOGO = http://localhost:9090/logo.jpg
+    LOGO_LINK = http://github.com
+    RADAR_NAME = My Tech Radar
+    BANNER_TEXT = My Tech Radar
+    FOOTER_TEXT = 'This software is built from <a href="https://github.com/thoughtworks/build-your-own-radar">open source</a> and available for download and self-hosting.'
+    THOUGHTWORKS_HELP = false 
+
